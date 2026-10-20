@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { GameMode } from '../types';
 import { generateRandomCode } from '../lib/seed';
 
@@ -22,6 +22,16 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({
   const [showSeedPanel, setShowSeedPanel] = useState(false);
   const [inputCode, setInputCode] = useState(sharedCode);
   const [copied, setCopied] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
+
+  const handleReset = useCallback(() => {
+    if (!confirmReset) {
+      setConfirmReset(true);
+      return;
+    }
+    localStorage.clear();
+    window.location.reload();
+  }, [confirmReset]);
 
   const handleApply = (e: React.FormEvent) => {
     e.preventDefault();
@@ -196,6 +206,33 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({
                 </button>
               )}
             </div>
+          </div>
+
+          {/* Separador y botón de reset */}
+          <div
+            style={{
+              borderTop: '1px solid var(--border-color)',
+              paddingTop: 8,
+              marginTop: 4,
+              display: 'flex',
+              justifyContent: 'flex-end',
+            }}
+          >
+            <button
+              type="button"
+              onClick={handleReset}
+              style={{
+                padding: '4px 10px',
+                fontSize: '0.75rem',
+                color: confirmReset ? '#fff' : 'var(--text-secondary)',
+                background: confirmReset ? '#c0392b' : 'transparent',
+                border: confirmReset ? '1px solid #c0392b' : '1px solid var(--border-color)',
+                borderRadius: 'var(--radius-sm)',
+                cursor: 'pointer',
+              }}
+            >
+              {confirmReset ? '¿Seguro? Se borran todos los datos' : '🗑 Borrar datos'}
+            </button>
           </div>
         </div>
       )}
