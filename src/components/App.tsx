@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import corpusData from '../data/es5.json';
 import phrasesData from '../data/es-frases.json';
 import { Corpus, PhraseCorpus, GameMode } from '../types';
@@ -29,20 +29,33 @@ function getUtcDateString(): string {
 export const App: React.FC = () => {
   const [theme, setTheme] = useState<'light' | 'dark'>(() => loadTheme());
   const [mode, setMode] = useState<GameMode>('daily');
-  const [customCode, setCustomCode] = useState(() => generateRandomCode());
-  const [sessionNonce, setSessionNonce] = useState(0); // Para regenerar en modo diaria/libre
+  const [globalSeed, setGlobalSeed] = useState(() => generateRandomCode());
+  const [sessionNonce, setSessionNonce] = useState(0); // Regenerar sesión entera
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isStatsOpen, setIsStatsOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Modo Supervivencia / Racha
-  const [survivalSeedCode, setSurvivalSeedCode] = useState(() => generateRandomCode());
   const [survivalLevel, setSurvivalLevel] = useState(1);
   const [survivalStreak, setSurvivalStreak] = useState(0);
+  const [isPhraseFinished, setIsPhraseFinished] = useState(false);
 
   const { stats, recordGameResult } = useStats(corpus.id);
 
-  // Determinar la semilla
+  // Función robusta para mostrar toast y auto-ocultarlo
+  const showToast = useCallback((msg: string, durationMs = 2500) => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+    }
+    setToastMessage(msg);
+    toastTimerRef.current = setTimeout(() => {
+      setToastMessage(null);
+      toastTimerRef.current = null;
+    }, durationMs);
+  }, []);
+
+  // Determinar la semilla activa según el modo
   const currentSeed = useMemo(() => {
     if (mode === 'daily') {
       return sessionNonce === 0 ? getUtcDateString() : `${getUtcDateString()}-r${sessionNonce}`;
@@ -51,10 +64,11 @@ export const App: React.FC = () => {
       return sessionNonce === 0 ? getUtcDateString() : `${getUtcDateString()}-r${sessionNonce}`;
     }
     if (mode === 'survival') {
-      return `${survivalSeedCode}-lvl-${survivalLevel}`;
+      return `${globalSeed}-lvl-${survivalLevel}${sessionNonce > 0 ? `-r${sessionNonce}` : ''}`;
     }
-    return customCode;
-  }, [mode, customCode, survivalSeedCode, survivalLevel, sessionNonce]);
+    // mode === 'seed'
+    return `${globalSeed}${sessionNonce > 0 ? `-r${sessionNonce}` : ''}`;
+  }, [mode, globalSeed, survivalLevel, sessionNonce]);
 
   const activeSeedString = useMemo(() => {
     return buildSeedString(mode, corpus.id, currentSeed);
@@ -109,7 +123,7 @@ export const App: React.FC = () => {
     }
   }, [mode, gameState.guesses, gameState.status, activeSeedString, targetWord]);
 
-  // Si termina el juego de palabras
+  // Al terminar juego de palabra estándar o racha
   useEffect(() => {
     if (mode !== 'phrase' && (gameState.status === 'won' || gameState.status === 'lost')) {
       const isWon = gameState.status === 'won';
@@ -119,29 +133,25 @@ export const App: React.FC = () => {
       if (mode === 'survival') {
         if (isWon) {
           setSurvivalStreak((s) => s + 1);
-          setToastMessage(`🔥 ¡Nivel superado! Racha: ${survivalStreak + 1}`);
+          showToast(`🔥 ¡Nivel superado! Racha: ${survivalStreak + 1}`, 2200);
         } else {
-          setToastMessage(`💀 Racha terminada: ${survivalStreak} palabras.`);
+          showToast(`💀 Racha terminada: ${survivalStreak} palabras.`, 3000);
         }
       }
 
       const timer = setTimeout(() => {
         setIsStatsOpen(true);
-      }, 1500);
+      }, 1400);
       return () => clearTimeout(timer);
     }
-  }, [gameState.status, gameState.guesses.length, mode, sessionNonce, recordGameResult, survivalStreak]);
+  }, [gameState.status, gameState.guesses.length, mode, sessionNonce, recordGameResult, survivalStreak, showToast]);
 
-  // Toast mensaje
+  // Toast originado por useGame (ej: letras insuficientes) solo cuando no sea modo frase
   useEffect(() => {
-    if (gameState.message) {
-      setToastMessage(gameState.message);
-      const timer = setTimeout(() => {
-        setToastMessage(null);
-      }, 2000);
-      return () => clearTimeout(timer);
+    if (mode !== 'phrase' && gameState.message) {
+      showToast(gameState.message, 2000);
     }
-  }, [gameState.message]);
+  }, [mode, gameState.message, showToast]);
 
   const handleNextSurvival = useCallback(() => {
     setSurvivalLevel((l) => l + 1);
@@ -150,32 +160,36 @@ export const App: React.FC = () => {
 
   const handleRestartSurvival = useCallback(() => {
     const nextSeed = generateRandomCode();
-    setSurvivalSeedCode(nextSeed);
+    setGlobalSeed(nextSeed);
     setSurvivalStreak(0);
     setSurvivalLevel(1);
+    setSessionNonce(0);
     setIsStatsOpen(false);
-    setToastMessage(`Nueva racha sincronizada: ${nextSeed}`);
-  }, []);
+    showToast(`Racha reiniciada con semilla: ${nextSeed}`, 2500);
+  }, [showToast]);
 
   const handlePhraseWin = useCallback(() => {
-    setToastMessage('🎉 ¡Felicidades! Frase del día completada.');
+    setIsPhraseFinished(true);
+    showToast('🎉 ¡Felicidades! Descubriste la frase.', 2500);
     setTimeout(() => {
       setIsStatsOpen(true);
     }, 1200);
-  }, []);
+  }, [showToast]);
 
+  const handlePhraseLost = useCallback(() => {
+    setIsPhraseFinished(true);
+    showToast('¡Agotaste los intentos de la frase!', 2500);
+    setTimeout(() => {
+      setIsStatsOpen(true);
+    }, 1200);
+  }, [showToast]);
+
+  // Regeneración completa de sesión
   const handleRegenerate = useCallback(() => {
-    if (mode === 'daily' || mode === 'phrase') {
-      setSessionNonce((n) => n + 1);
-      setToastMessage('✨ ¡Nueva palabra generada para esta sesión!');
-    } else if (mode === 'code') {
-      const next = generateRandomCode();
-      setCustomCode(next);
-      setToastMessage(`✨ Nueva sala: ${next}`);
-    } else if (mode === 'survival') {
-      handleRestartSurvival();
-    }
-  }, [mode, handleRestartSurvival]);
+    setSessionNonce((n) => n + 1);
+    setIsPhraseFinished(false);
+    showToast('✨ Sesión regenerada: nueva palabra/frase activa', 2000);
+  }, [showToast]);
 
   const isGameOver = gameState.status === 'won' || gameState.status === 'lost';
 
@@ -185,10 +199,12 @@ export const App: React.FC = () => {
         ? 'PALABRA'
         : `LIBRE (#${sessionNonce})`
       : mode === 'phrase'
-      ? 'FRASE'
+      ? sessionNonce === 0
+        ? 'FRASE'
+        : `FRASE (#${sessionNonce})`
       : mode === 'survival'
       ? `RACHA (${survivalStreak}🔥)`
-      : 'SALA';
+      : 'SEMILLA';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', width: '100%' }}>
@@ -205,22 +221,29 @@ export const App: React.FC = () => {
 
       <ModeSelector
         currentMode={mode}
-        onSelectMode={(m, code) => {
+        onSelectMode={(m) => {
           setMode(m);
-          if (code) setCustomCode(code);
+          setIsPhraseFinished(false);
         }}
-        currentCode={customCode}
+        currentSeedCode={globalSeed}
+        onUpdateSeedCode={(code) => {
+          setGlobalSeed(code);
+          setSurvivalStreak(0);
+          setSurvivalLevel(1);
+          setSessionNonce(0);
+          showToast(`Semilla aplicada: ${code}`, 2000);
+        }}
       />
 
       {mode === 'survival' && (
         <div style={{ padding: '4px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-          <span>Semilla compartible: <strong>{survivalSeedCode}</strong> (Nivel {survivalLevel})</span>
+          <span>Semilla: <strong>{globalSeed}</strong> (Nivel {survivalLevel})</span>
           <button
             type="button"
             className="btn-secondary"
             style={{ padding: '2px 8px', fontSize: '0.75rem' }}
             onClick={handleRestartSurvival}
-            title="Resetear con nueva semilla compartible"
+            title="Nueva serie compartible"
           >
             Nueva serie
           </button>
@@ -233,6 +256,8 @@ export const App: React.FC = () => {
           phrase={targetPhrase}
           corpus={corpus}
           onWin={handlePhraseWin}
+          onLost={handlePhraseLost}
+          onErrorToast={(msg) => showToast(msg, 2000)}
         />
       ) : (
         <>
@@ -263,7 +288,7 @@ export const App: React.FC = () => {
         onClose={() => setIsStatsOpen(false)}
         title={
           mode === 'phrase'
-            ? 'FRASE DEL DÍA'
+            ? 'FRASE'
             : isGameOver
             ? gameState.status === 'won'
               ? '¡VICTORIA!'
@@ -283,10 +308,10 @@ export const App: React.FC = () => {
             </div>
           )}
 
-          {mode === 'phrase' && (
+          {(mode === 'phrase' || isPhraseFinished) && (
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                Refrán del día:
+                Frase:
               </div>
               <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-correct)', marginTop: 4 }}>
                 "{targetPhrase}"
@@ -333,7 +358,7 @@ export const App: React.FC = () => {
               setIsStatsOpen(false);
             }}
           >
-            🔄 Jugar otra partida inmediatamente
+            🔄 Siguiente partida (nueva palabra)
           </button>
         </div>
       </Modal>

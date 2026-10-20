@@ -34,7 +34,7 @@ describe('seed & modes', () => {
     expect(buildSeedString('daily', 'es5', '2026-10-20')).toBe('d:es5:2026-10-20');
     expect(buildSeedString('phrase', 'es-frases', '2026-10-20')).toBe('f:es-frases:2026-10-20');
     expect(buildSeedString('survival', 'es5', 'lvl-1')).toBe('s:es5:lvl-1');
-    expect(buildSeedString('code', 'es5', 'amigo reto')).toBe('c:es5:AMIGO-RETO');
+    expect(buildSeedString('seed', 'es5', 'amigo reto')).toBe('c:es5:AMIGO-RETO');
   });
 
   it('selecciona palabras de forma determinista para la misma semilla', () => {

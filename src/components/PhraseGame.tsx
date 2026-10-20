@@ -9,13 +9,20 @@ interface PhraseGameProps {
   phrase: string;
   corpus: Corpus;
   onWin: () => void;
+  onLost: () => void;
+  onErrorToast: (msg: string) => void;
 }
 
-export const PhraseGame: React.FC<PhraseGameProps> = ({ phrase, corpus, onWin }) => {
+export const PhraseGame: React.FC<PhraseGameProps> = ({
+  phrase,
+  corpus,
+  onWin,
+  onLost,
+  onErrorToast,
+}) => {
   const [guesses, setGuesses] = useState<string[]>([]);
   const [currentGuess, setCurrentGuess] = useState('');
   const [isShaking, setIsShaking] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
 
   // Normalizamos frase
   const phraseNorm = useMemo(() => normalize(phrase), [phrase]);
@@ -56,8 +63,10 @@ export const PhraseGame: React.FC<PhraseGameProps> = ({ phrase, corpus, onWin })
   useEffect(() => {
     if (isWon) {
       onWin();
+    } else if (isLost) {
+      onLost();
     }
-  }, [isWon, onWin]);
+  }, [isWon, isLost, onWin, onLost]);
 
   const validSet = useMemo(() => new Set(corpus.valid.map(normalize)), [corpus]);
 
@@ -85,7 +94,7 @@ export const PhraseGame: React.FC<PhraseGameProps> = ({ phrase, corpus, onWin })
       if (key === 'ENTER') {
         if (currentGuess.length < WORD_LENGTH) {
           setIsShaking(true);
-          setMessage('Letras insuficientes');
+          onErrorToast('Letras insuficientes');
           setTimeout(() => setIsShaking(false), 500);
           return;
         }
@@ -93,7 +102,7 @@ export const PhraseGame: React.FC<PhraseGameProps> = ({ phrase, corpus, onWin })
         const norm = normalize(currentGuess);
         if (!validSet.has(norm)) {
           setIsShaking(true);
-          setMessage('Palabra no válida');
+          onErrorToast('Palabra no válida');
           setTimeout(() => setIsShaking(false), 500);
           return;
         }
@@ -108,7 +117,7 @@ export const PhraseGame: React.FC<PhraseGameProps> = ({ phrase, corpus, onWin })
         }
       }
     },
-    [isWon, isLost, currentGuess, validSet]
+    [isWon, isLost, currentGuess, validSet, onErrorToast]
   );
 
   useEffect(() => {
@@ -140,8 +149,6 @@ export const PhraseGame: React.FC<PhraseGameProps> = ({ phrase, corpus, onWin })
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'space-between' }}>
-      {message && <div className="feedback-toast">{message}</div>}
-
       {/* Contenedor de la frase que se va destapando */}
       <div style={{ padding: '8px 12px', textAlign: 'center' }}>
         <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: 6 }}>
@@ -200,18 +207,6 @@ export const PhraseGame: React.FC<PhraseGameProps> = ({ phrase, corpus, onWin })
         isShaking={isShaking}
         isWon={isWon}
       />
-
-      {isLost && (
-        <div style={{ textAlign: 'center', color: 'var(--color-present)', fontWeight: 700, margin: '4px 0' }}>
-          ¡Agotaste los 6 intentos! La frase era: "{phrase}"
-        </div>
-      )}
-
-      {isWon && (
-        <div style={{ textAlign: 'center', color: 'var(--color-correct)', fontWeight: 800, margin: '4px 0' }}>
-          🎉 ¡Descubriste la frase completa!
-        </div>
-      )}
 
       <Keyboard onKey={onKey} letterStates={letterStates} disabled={isWon || isLost} />
     </div>
