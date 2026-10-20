@@ -2,7 +2,7 @@ export type TileState = 'correct' | 'present' | 'absent';
 
 export type GameStatus = 'idle' | 'playing' | 'won' | 'lost';
 
-export type GameMode = 'daily' | 'phrase' | 'survival' | 'seed';
+export type GameMode = 'daily' | 'phrase' | 'survival';
 
 export interface Corpus {
   id: string;

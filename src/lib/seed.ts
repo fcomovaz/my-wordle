@@ -11,18 +11,16 @@ export function normalizeCode(code: string): string {
 export function buildSeedString(
   mode: GameMode,
   corpusId: string,
-  dateOrCode: string
+  identifier: string
 ): string {
   if (mode === 'daily') {
-    return `d:${corpusId}:${dateOrCode.trim()}`;
+    return `d:${corpusId}:${identifier.trim()}`;
   }
   if (mode === 'phrase') {
-    return `f:${corpusId}:${dateOrCode.trim()}`;
+    return `f:${corpusId}:${identifier.trim()}`;
   }
-  if (mode === 'survival') {
-    return `s:${corpusId}:${dateOrCode.trim()}`;
-  }
-  return `c:${corpusId}:${normalizeCode(dateOrCode)}`;
+  // mode === 'survival'
+  return `s:${corpusId}:${identifier.trim()}`;
 }
 
 export function selectWord(
