@@ -30,11 +30,13 @@ export const App: React.FC = () => {
   const [theme, setTheme] = useState<'light' | 'dark'>(() => loadTheme());
   const [mode, setMode] = useState<GameMode>('daily');
   const [customCode, setCustomCode] = useState(() => generateRandomCode());
+  const [sessionNonce, setSessionNonce] = useState(0); // Para regenerar en modo diaria/libre
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isStatsOpen, setIsStatsOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Modo Supervivencia / Racha
+  const [survivalSeedCode, setSurvivalSeedCode] = useState(() => generateRandomCode());
   const [survivalLevel, setSurvivalLevel] = useState(1);
   const [survivalStreak, setSurvivalStreak] = useState(0);
 
@@ -42,22 +44,28 @@ export const App: React.FC = () => {
 
   // Determinar la semilla
   const currentSeed = useMemo(() => {
-    if (mode === 'daily') return getUtcDateString();
-    if (mode === 'phrase') return getUtcDateString();
-    if (mode === 'survival') return `racha-lvl-${survivalLevel}-${getUtcDateString()}`;
+    if (mode === 'daily') {
+      return sessionNonce === 0 ? getUtcDateString() : `${getUtcDateString()}-r${sessionNonce}`;
+    }
+    if (mode === 'phrase') {
+      return sessionNonce === 0 ? getUtcDateString() : `${getUtcDateString()}-r${sessionNonce}`;
+    }
+    if (mode === 'survival') {
+      return `${survivalSeedCode}-lvl-${survivalLevel}`;
+    }
     return customCode;
-  }, [mode, customCode, survivalLevel]);
+  }, [mode, customCode, survivalSeedCode, survivalLevel, sessionNonce]);
 
   const activeSeedString = useMemo(() => {
     return buildSeedString(mode, corpus.id, currentSeed);
   }, [mode, currentSeed]);
 
-  // Selección de palabra (para modos de 5 letras)
+  // Selección de palabra
   const { word: targetWord } = useMemo(() => {
     return selectWord(activeSeedString, corpus);
   }, [activeSeedString]);
 
-  // Selección de frase (para modo frase)
+  // Selección de frase
   const { phrase: targetPhrase } = useMemo(() => {
     const pSeed = buildSeedString('phrase', phraseCorpus.id, currentSeed);
     return selectPhrase(pSeed, phraseCorpus);
@@ -105,7 +113,7 @@ export const App: React.FC = () => {
   useEffect(() => {
     if (mode !== 'phrase' && (gameState.status === 'won' || gameState.status === 'lost')) {
       const isWon = gameState.status === 'won';
-      const dateKey = mode === 'daily' ? getUtcDateString() : undefined;
+      const dateKey = mode === 'daily' && sessionNonce === 0 ? getUtcDateString() : undefined;
       recordGameResult(isWon, gameState.guesses.length, dateKey);
 
       if (mode === 'survival') {
@@ -122,7 +130,7 @@ export const App: React.FC = () => {
       }, 1500);
       return () => clearTimeout(timer);
     }
-  }, [gameState.status, gameState.guesses.length, mode, recordGameResult, survivalStreak]);
+  }, [gameState.status, gameState.guesses.length, mode, sessionNonce, recordGameResult, survivalStreak]);
 
   // Toast mensaje
   useEffect(() => {
@@ -141,9 +149,12 @@ export const App: React.FC = () => {
   }, []);
 
   const handleRestartSurvival = useCallback(() => {
+    const nextSeed = generateRandomCode();
+    setSurvivalSeedCode(nextSeed);
     setSurvivalStreak(0);
-    setSurvivalLevel((l) => l + 100);
+    setSurvivalLevel(1);
     setIsStatsOpen(false);
+    setToastMessage(`Nueva racha sincronizada: ${nextSeed}`);
   }, []);
 
   const handlePhraseWin = useCallback(() => {
@@ -153,11 +164,26 @@ export const App: React.FC = () => {
     }, 1200);
   }, []);
 
+  const handleRegenerate = useCallback(() => {
+    if (mode === 'daily' || mode === 'phrase') {
+      setSessionNonce((n) => n + 1);
+      setToastMessage('✨ ¡Nueva palabra generada para esta sesión!');
+    } else if (mode === 'code') {
+      const next = generateRandomCode();
+      setCustomCode(next);
+      setToastMessage(`✨ Nueva sala: ${next}`);
+    } else if (mode === 'survival') {
+      handleRestartSurvival();
+    }
+  }, [mode, handleRestartSurvival]);
+
   const isGameOver = gameState.status === 'won' || gameState.status === 'lost';
 
   const modeBadge =
     mode === 'daily'
-      ? 'PALABRA'
+      ? sessionNonce === 0
+        ? 'PALABRA'
+        : `LIBRE (#${sessionNonce})`
       : mode === 'phrase'
       ? 'FRASE'
       : mode === 'survival'
@@ -173,6 +199,7 @@ export const App: React.FC = () => {
         onOpenStats={() => setIsStatsOpen(true)}
         theme={theme}
         onToggleTheme={toggleTheme}
+        onRegenerate={handleRegenerate}
         modeLabel={modeBadge}
       />
 
@@ -185,8 +212,28 @@ export const App: React.FC = () => {
         currentCode={customCode}
       />
 
+      {mode === 'survival' && (
+        <div style={{ padding: '4px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+          <span>Semilla compartible: <strong>{survivalSeedCode}</strong> (Nivel {survivalLevel})</span>
+          <button
+            type="button"
+            className="btn-secondary"
+            style={{ padding: '2px 8px', fontSize: '0.75rem' }}
+            onClick={handleRestartSurvival}
+            title="Resetear con nueva semilla compartible"
+          >
+            Nueva serie
+          </button>
+        </div>
+      )}
+
       {mode === 'phrase' ? (
-        <PhraseGame key={activeSeedString} phrase={targetPhrase} onWin={handlePhraseWin} />
+        <PhraseGame
+          key={activeSeedString}
+          phrase={targetPhrase}
+          corpus={corpus}
+          onWin={handlePhraseWin}
+        />
       ) : (
         <>
           <Board
@@ -277,20 +324,17 @@ export const App: React.FC = () => {
             </div>
           )}
 
-          {mode === 'code' && (
-            <button
-              type="button"
-              className="btn-secondary"
-              style={{ width: '100%', marginTop: 8 }}
-              onClick={() => {
-                const next = generateRandomCode();
-                setCustomCode(next);
-                setIsStatsOpen(false);
-              }}
-            >
-              🎲 Siguiente palabra aleatoria
-            </button>
-          )}
+          <button
+            type="button"
+            className="btn-secondary"
+            style={{ width: '100%', marginTop: 8 }}
+            onClick={() => {
+              handleRegenerate();
+              setIsStatsOpen(false);
+            }}
+          >
+            🔄 Jugar otra partida inmediatamente
+          </button>
         </div>
       </Modal>
     </div>

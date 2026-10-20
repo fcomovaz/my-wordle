@@ -5,6 +5,7 @@ interface HeaderProps {
   onOpenStats: () => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
+  onRegenerate?: () => void;
   modeLabel?: string;
 }
 
@@ -13,6 +14,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenStats,
   theme,
   onToggleTheme,
+  onRegenerate,
   modeLabel = 'DIARIA',
 }) => {
   return (
@@ -22,6 +24,17 @@ export const Header: React.FC<HeaderProps> = ({
         <span className="header-badge">{modeLabel}</span>
       </div>
       <div className="header-actions">
+        {onRegenerate && (
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={onRegenerate}
+            aria-label="Nueva palabra (regenerar)"
+            title="Nueva palabra aleatoria"
+          >
+            🔄
+          </button>
+        )}
         <button
           type="button"
           className="icon-btn"
