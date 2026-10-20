@@ -1,0 +1,107 @@
+.board-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-grow: 1;
+  padding: 8px 16px;
+}
+
+.board-grid {
+  display: grid;
+  grid-template-rows: repeat(6, 1fr);
+  gap: 5px;
+  width: 100%;
+  max-width: 330px;
+  aspect-ratio: 5 / 6;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 5px;
+}
+
+.row-shake {
+  animation: shake 500ms ease-in-out;
+}
+
+.tile {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border: 2px solid var(--tile-border);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: clamp(1.4rem, 5vw, 2rem);
+  font-weight: 700;
+  text-transform: uppercase;
+  background-color: var(--tile-bg);
+  color: var(--text-primary);
+  border-radius: var(--radius-sm);
+  transition: transform 150ms ease, border-color 150ms ease;
+}
+
+.tile-filled {
+  border-color: var(--tile-active-border);
+  animation: popIn 100ms ease-in-out;
+}
+
+.tile-flip {
+  animation: flip 500ms ease forwards;
+}
+
+.tile-correct {
+  background-color: var(--color-correct);
+  border-color: var(--color-correct);
+  color: var(--color-correct-text);
+}
+
+.tile-present {
+  background-color: var(--color-present);
+  border-color: var(--color-present);
+  color: var(--color-present-text);
+}
+
+.tile-absent {
+  background-color: var(--color-absent);
+  border-color: var(--color-absent);
+  color: var(--color-absent-text);
+}
+
+.tile-bounce {
+  animation: bounce 600ms ease infinite alternate;
+}
+
+@keyframes popIn {
+  0% { transform: scale(0.8); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+@keyframes flip {
+  0% {
+    transform: rotateX(0deg);
+  }
+  49% {
+    transform: rotateX(90deg);
+  }
+  50% {
+    transform: rotateX(90deg);
+  }
+  100% {
+    transform: rotateX(0deg);
+  }
+}
+
+@keyframes shake {
+  10%, 90% { transform: translateX(-3px); }
+  20%, 80% { transform: translateX(5px); }
+  30%, 50%, 70% { transform: translateX(-5px); }
+  40%, 60% { transform: translateX(5px); }
+}
+
+@keyframes bounce {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0); }
+}

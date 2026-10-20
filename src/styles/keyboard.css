@@ -1,0 +1,56 @@
+.keyboard-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+
+.keyboard-row {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+}
+
+.key-btn {
+  height: 54px;
+  border-radius: var(--radius-sm);
+  background-color: var(--key-bg);
+  color: var(--key-text);
+  font-weight: 700;
+  font-size: clamp(0.75rem, 3.5vw, 1rem);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex: 1;
+  user-select: none;
+  transition: background-color 200ms ease, transform 100ms ease;
+}
+
+.key-btn:active {
+  background-color: var(--key-active);
+  transform: scale(0.95);
+}
+
+.key-wide {
+  flex: 1.5;
+  font-size: clamp(0.65rem, 2.5vw, 0.8rem);
+}
+
+.key-correct {
+  background-color: var(--color-correct) !important;
+  color: var(--color-correct-text) !important;
+}
+
+.key-present {
+  background-color: var(--color-present) !important;
+  color: var(--color-present-text) !important;
+}
+
+.key-absent {
+  background-color: var(--color-absent) !important;
+  color: var(--color-absent-text) !important;
+  opacity: 0.6;
+}
