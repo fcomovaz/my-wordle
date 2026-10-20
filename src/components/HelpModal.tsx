@@ -5,12 +5,18 @@ export const HelpModal: React.FC = () => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14, fontSize: '0.9rem' }}>
       <p>
-        Adivina la <strong>PALABRA</strong> oculta en 6 intentos. Cada intento debe ser una
-        palabra válida de 5 letras en español.
+        <strong>PALABRA</strong> tiene varios modos de juego en español:
       </p>
+
+      <ul style={{ paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <li><strong>📅 Palabra:</strong> La palabra del día oficial a las 00:00 UTC.</li>
+        <li><strong>📜 Frase:</strong> Refranes y dichos populares para adivinar letra a letra.</li>
+        <li><strong>⚡ Racha (Supervivencia):</strong> Palabras encadenadas continuas. ¿Cuántas puedes adivinar sin perder?</li>
+        <li><strong>🔑 Sala privada:</strong> Juega con códigos únicos compartibles entre amigos generados al instante.</li>
+      </ul>
+
       <p>
-        Después de cada intento, el color de las fichas cambiará para mostrar qué tan
-        cerca estás:
+        Significado de los colores al adivinar palabras:
       </p>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -47,12 +53,6 @@ export const HelpModal: React.FC = () => {
           <div>La letra <strong>N</strong> no forma parte de la palabra.</div>
         </div>
       </div>
-
-      <hr style={{ borderColor: 'var(--border-color)', margin: '4px 0' }} />
-
-      <p style={{ color: 'var(--text-secondary)' }}>
-        Una palabra nueva cada día a las 00:00 UTC. ¡O crea códigos privados para competir con amigos!
-      </p>
     </div>
   );
 };

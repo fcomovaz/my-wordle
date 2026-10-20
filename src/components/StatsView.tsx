@@ -4,9 +4,10 @@ import { Stats } from '../types';
 interface StatsViewProps {
   stats: Stats;
   lastGuessesCount?: number;
+  survivalStreak?: number;
 }
 
-export const StatsView: React.FC<StatsViewProps> = ({ stats, lastGuessesCount }) => {
+export const StatsView: React.FC<StatsViewProps> = ({ stats, lastGuessesCount, survivalStreak }) => {
   const winRate =
     stats.played > 0 ? Math.round((stats.wins / stats.played) * 100) : 0;
 
@@ -17,6 +18,13 @@ export const StatsView: React.FC<StatsViewProps> = ({ stats, lastGuessesCount })
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {survivalStreak !== undefined && (
+        <div style={{ textAlign: 'center', background: 'var(--bg-secondary)', padding: 10, borderRadius: 'var(--radius-md)' }}>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Racha modo Supervivencia actual</div>
+          <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--color-present)' }}>{survivalStreak} 🔥</div>
+        </div>
+      )}
+
       <div className="stats-grid">
         <div className="stat-item">
           <span className="stat-value">{stats.played}</span>

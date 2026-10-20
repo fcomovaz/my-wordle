@@ -2,7 +2,7 @@ export type TileState = 'correct' | 'present' | 'absent';
 
 export type GameStatus = 'idle' | 'playing' | 'won' | 'lost';
 
-export type GameMode = 'daily' | 'code';
+export type GameMode = 'daily' | 'code' | 'phrase' | 'survival';
 
 export interface Corpus {
   id: string;
@@ -13,12 +13,11 @@ export interface Corpus {
   valid: string[];
 }
 
-export interface ShareToken {
-  version: string;
-  corpusId: string;
-  seed: string;
-  attempts: number | 'X';
-  gridB64: string;
+export interface PhraseCorpus {
+  id: string;
+  lang: string;
+  version: number;
+  phrases: string[];
 }
 
 export interface Stats {
@@ -39,10 +38,4 @@ export interface SavedGame {
   status: GameStatus;
   startTime?: number;
   endTime?: number;
-}
-
-export interface RivalComparison {
-  shareToken: ShareToken;
-  rivalGrid: TileState[][];
-  rivalAttempts: number | 'X';
 }
