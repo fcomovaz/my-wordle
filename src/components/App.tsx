@@ -43,7 +43,7 @@ export const App: React.FC = () => {
 
   const { stats, recordGameResult } = useStats(corpus.id);
 
-  // Función robusta para mostrar toast y auto-ocultarlo
+  // Función para mostrar toast y auto-ocultarlo
   const showToast = useCallback((msg: string, durationMs = 2500) => {
     if (toastTimerRef.current) {
       clearTimeout(toastTimerRef.current);
@@ -87,7 +87,7 @@ export const App: React.FC = () => {
 
   // Carga de juego guardado en localStorage
   const savedGame = useMemo(() => {
-    if (mode === 'phrase') return null;
+    if (mode === 'phrase' || mode === 'seed') return null;
     return loadGame(corpus.id, activeSeedString);
   }, [mode, activeSeedString]);
 
@@ -111,7 +111,7 @@ export const App: React.FC = () => {
 
   // Guardar progreso del juego
   useEffect(() => {
-    if (mode !== 'phrase' && (gameState.guesses.length > 0 || gameState.status !== 'idle')) {
+    if (mode !== 'phrase' && mode !== 'seed' && (gameState.guesses.length > 0 || gameState.status !== 'idle')) {
       saveGame({
         version: 1,
         corpusId: corpus.id,
@@ -125,7 +125,7 @@ export const App: React.FC = () => {
 
   // Al terminar juego de palabra estándar o racha
   useEffect(() => {
-    if (mode !== 'phrase' && (gameState.status === 'won' || gameState.status === 'lost')) {
+    if (mode !== 'phrase' && mode !== 'seed' && (gameState.status === 'won' || gameState.status === 'lost')) {
       const isWon = gameState.status === 'won';
       const dateKey = mode === 'daily' && sessionNonce === 0 ? getUtcDateString() : undefined;
       recordGameResult(isWon, gameState.guesses.length, dateKey);
@@ -146,9 +146,9 @@ export const App: React.FC = () => {
     }
   }, [gameState.status, gameState.guesses.length, mode, sessionNonce, recordGameResult, survivalStreak, showToast]);
 
-  // Toast originado por useGame (ej: letras insuficientes) solo cuando no sea modo frase
+  // Toast originado por useGame solo cuando estemos jugando en modo tablero
   useEffect(() => {
-    if (mode !== 'phrase' && gameState.message) {
+    if (mode !== 'phrase' && mode !== 'seed' && gameState.message) {
       showToast(gameState.message, 2000);
     }
   }, [mode, gameState.message, showToast]);
@@ -184,11 +184,11 @@ export const App: React.FC = () => {
     }, 1200);
   }, [showToast]);
 
-  // Regeneración completa de sesión
+  // Regeneración completa de sesión con 1 solo click garantizado
   const handleRegenerate = useCallback(() => {
-    setSessionNonce((n) => n + 1);
+    setSessionNonce(Date.now());
     setIsPhraseFinished(false);
-    showToast('✨ Sesión regenerada: nueva palabra/frase activa', 2000);
+    showToast('✨ Sesión regenerada: nueva partida iniciada', 2000);
   }, [showToast]);
 
   const isGameOver = gameState.status === 'won' || gameState.status === 'lost';
@@ -197,14 +197,14 @@ export const App: React.FC = () => {
     mode === 'daily'
       ? sessionNonce === 0
         ? 'PALABRA'
-        : `LIBRE (#${sessionNonce})`
+        : 'LIBRE'
       : mode === 'phrase'
       ? sessionNonce === 0
         ? 'FRASE'
-        : `FRASE (#${sessionNonce})`
+        : 'FRASE LIBRE'
       : mode === 'survival'
       ? `RACHA (${survivalStreak}🔥)`
-      : 'SEMILLA';
+      : 'CONFIG';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', width: '100%' }}>
@@ -215,7 +215,7 @@ export const App: React.FC = () => {
         onOpenStats={() => setIsStatsOpen(true)}
         theme={theme}
         onToggleTheme={toggleTheme}
-        onRegenerate={handleRegenerate}
+        onRegenerate={mode !== 'seed' ? handleRegenerate : undefined}
         modeLabel={modeBadge}
       />
 
@@ -259,9 +259,10 @@ export const App: React.FC = () => {
           onLost={handlePhraseLost}
           onErrorToast={(msg) => showToast(msg, 2000)}
         />
-      ) : (
+      ) : mode === 'daily' || mode === 'survival' ? (
         <>
           <Board
+            key={`board-${activeSeedString}`}
             guesses={gameState.guesses}
             evaluations={gameState.evaluations}
             currentGuess={gameState.currentGuess}
@@ -275,7 +276,7 @@ export const App: React.FC = () => {
             disabled={isGameOver}
           />
         </>
-      )}
+      ) : null}
 
       {/* Modal de Ayuda */}
       <Modal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} title="CÓMO JUGAR">
@@ -349,17 +350,19 @@ export const App: React.FC = () => {
             </div>
           )}
 
-          <button
-            type="button"
-            className="btn-secondary"
-            style={{ width: '100%', marginTop: 8 }}
-            onClick={() => {
-              handleRegenerate();
-              setIsStatsOpen(false);
-            }}
-          >
-            🔄 Siguiente partida (nueva palabra)
-          </button>
+          {mode !== 'seed' && (
+            <button
+              type="button"
+              className="btn-secondary"
+              style={{ width: '100%', marginTop: 8 }}
+              onClick={() => {
+                handleRegenerate();
+                setIsStatsOpen(false);
+              }}
+            >
+              🔄 Siguiente partida (nueva palabra)
+            </button>
+          )}
         </div>
       </Modal>
     </div>

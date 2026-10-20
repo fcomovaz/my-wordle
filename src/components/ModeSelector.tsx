@@ -75,9 +75,23 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({
       </div>
 
       {currentMode === 'seed' && (
-        <div style={{ background: 'var(--bg-secondary)', padding: '12px', borderRadius: 'var(--radius-md)', marginTop: 8 }}>
-          <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 8 }}>
-            Configura una semilla global. Esta semilla rige la palabra, frase y racha para jugar de forma sincronizada con amigos:
+        <div
+          style={{
+            background: 'var(--bg-secondary)',
+            padding: '16px',
+            borderRadius: 'var(--radius-md)',
+            marginTop: 12,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 12,
+          }}
+        >
+          <div style={{ fontSize: '1rem', fontWeight: 700 }}>
+            Panel de Semilla Compartida
+          </div>
+
+          <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+            Ingresa o genera una semilla única para sincronizar la palabra, la frase y la serie de niveles de racha con tus amigos:
           </div>
 
           <form className="code-input-form" onSubmit={handleApply} style={{ margin: 0, gap: 6 }}>
@@ -94,25 +108,43 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({
               className="btn-secondary"
               onClick={handleRandom}
               title="Generar nueva semilla aleatoria"
-              style={{ padding: '8px 10px' }}
+              style={{ padding: '8px 12px' }}
             >
-              🎲
+              🎲 Azar
             </button>
-            <button type="submit" className="btn-primary" style={{ padding: '8px 12px' }}>
-              Aplicar
+            <button type="submit" className="btn-primary" style={{ padding: '8px 14px' }}>
+              Guardar
             </button>
           </form>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, fontSize: '0.8rem' }}>
-            <span>Semilla activa: <strong>{currentSeedCode}</strong></span>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '10px 12px',
+              backgroundColor: 'var(--bg-primary)',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--border-color)',
+            }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Semilla actual en uso:</span>
+              <strong style={{ fontSize: '1rem', letterSpacing: '0.5px' }}>{currentSeedCode}</strong>
+            </div>
+
             <button
               type="button"
               className="btn-secondary"
               onClick={handleCopy}
-              style={{ padding: '3px 8px', fontSize: '0.75rem' }}
+              style={{ padding: '6px 12px', fontSize: '0.85rem' }}
             >
-              {copied ? '✓ Copiada' : '📋 Copiar'}
+              {copied ? '✓ ¡Copiada!' : '📋 Copiar'}
             </button>
+          </div>
+
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
+            💡 Para jugar con esta semilla, selecciona arriba <strong>📅 Palabra</strong>, <strong>📜 Frase</strong> o <strong>⚡ Racha</strong>.
           </div>
         </div>
       )}
