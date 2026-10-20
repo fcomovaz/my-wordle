@@ -30,13 +30,12 @@ export const App: React.FC = () => {
   const [theme, setTheme] = useState<'light' | 'dark'>(() => loadTheme());
   const [mode, setMode] = useState<GameMode>('daily');
 
-  // Código compartido para jugar con amigos (opcional)
+  // Código compartido
   const [sharedCode, setSharedCode] = useState(() => generateRandomCode());
   const [isCustomCodeActive, setIsCustomCodeActive] = useState(false);
 
-  // Contador de regeneración para modo solo (número incremental)
-  const [dailyNonce, setDailyNonce] = useState(0);
-  const [phraseNonce, setPhraseNonce] = useState(0);
+  // Secuencia determinista compartida/individual
+  const [partidaNum, setPartidaNum] = useState(1);
 
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isStatsOpen, setIsStatsOpen] = useState(false);
@@ -48,9 +47,11 @@ export const App: React.FC = () => {
   const [survivalStreak, setSurvivalStreak] = useState(0);
   const [isPhraseFinished, setIsPhraseFinished] = useState(false);
 
+  // Ref para evitar loops en el cálculo de fin de partida
+  const lastProcessedKeyRef = useRef<string>('');
+
   const { stats, recordGameResult } = useStats(corpus.id);
 
-  // Toast
   const showToast = useCallback((msg: string, durationMs = 2500) => {
     if (toastTimerRef.current) {
       clearTimeout(toastTimerRef.current);
@@ -62,31 +63,19 @@ export const App: React.FC = () => {
     }, durationMs);
   }, []);
 
-  // Construcción determinista idéntica del identificador de semilla
+  // Semilla determinista idéntica entre amigos y entre secuencias
   const currentIdentifier = useMemo(() => {
-    // Si hay un código compartido activo (ej: con amigo o novia)
-    if (isCustomCodeActive) {
-      const codeNorm = normalizeCode(sharedCode);
-      if (mode === 'daily') {
-        return codeNorm;
-      }
-      if (mode === 'phrase') {
-        return `${codeNorm}-frase`;
-      }
-      // survival
-      return `${codeNorm}-lvl-${survivalLevel}`;
-    }
+    const baseCode = isCustomCodeActive ? normalizeCode(sharedCode) : getUtcDateString();
 
-    // Modo solo normal:
     if (mode === 'daily') {
-      return dailyNonce === 0 ? getUtcDateString() : `${getUtcDateString()}-r${dailyNonce}`;
+      return partidaNum === 1 ? baseCode : `${baseCode}-p${partidaNum}`;
     }
     if (mode === 'phrase') {
-      return phraseNonce === 0 ? getUtcDateString() : `${getUtcDateString()}-r${phraseNonce}`;
+      return partidaNum === 1 ? `${baseCode}-frase` : `${baseCode}-frase-p${partidaNum}`;
     }
-    // survival solo
+    // survival
     return `${normalizeCode(sharedCode)}-lvl-${survivalLevel}`;
-  }, [isCustomCodeActive, sharedCode, mode, dailyNonce, phraseNonce, survivalLevel]);
+  }, [isCustomCodeActive, sharedCode, mode, partidaNum, survivalLevel]);
 
   const activeSeedString = useMemo(() => {
     return buildSeedString(mode, corpus.id, currentIdentifier);
@@ -144,14 +133,23 @@ export const App: React.FC = () => {
   // Fin de juego
   useEffect(() => {
     if (mode !== 'phrase' && (gameState.status === 'won' || gameState.status === 'lost')) {
+      const processKey = `${activeSeedString}:${gameState.guesses.length}:${gameState.status}`;
+      if (lastProcessedKeyRef.current === processKey) {
+        return;
+      }
+      lastProcessedKeyRef.current = processKey;
+
       const isWon = gameState.status === 'won';
-      const dateKey = mode === 'daily' && !isCustomCodeActive && dailyNonce === 0 ? getUtcDateString() : undefined;
+      const dateKey = mode === 'daily' && !isCustomCodeActive && partidaNum === 1 ? getUtcDateString() : undefined;
       recordGameResult(isWon, gameState.guesses.length, dateKey);
 
       if (mode === 'survival') {
         if (isWon) {
-          setSurvivalStreak((s) => s + 1);
-          showToast(`🔥 ¡Nivel superado! Racha: ${survivalStreak + 1}`, 2200);
+          setSurvivalStreak((prev) => {
+            const next = prev + 1;
+            showToast(`🔥 ¡Nivel superado! Racha: ${next}`, 2200);
+            return next;
+          });
         } else {
           showToast(`💀 Racha terminada: ${survivalStreak} palabras.`, 3000);
         }
@@ -162,9 +160,9 @@ export const App: React.FC = () => {
       }, 1400);
       return () => clearTimeout(timer);
     }
-  }, [gameState.status, gameState.guesses.length, mode, isCustomCodeActive, dailyNonce, recordGameResult, survivalStreak, showToast]);
+  }, [gameState.status, gameState.guesses.length, mode, activeSeedString, isCustomCodeActive, partidaNum, recordGameResult, survivalStreak, showToast]);
 
-  // Toast originado por useGame
+  // Toast de useGame
   useEffect(() => {
     if (mode !== 'phrase' && gameState.message) {
       showToast(gameState.message, 2000);
@@ -177,8 +175,6 @@ export const App: React.FC = () => {
   }, []);
 
   const handleRestartSurvival = useCallback(() => {
-    const nextSeed = generateRandomCode();
-    setSharedCode(nextSeed);
     setSurvivalStreak(0);
     setSurvivalLevel(1);
     setIsStatsOpen(false);
@@ -201,45 +197,33 @@ export const App: React.FC = () => {
     }, 1200);
   }, [showToast]);
 
-  // Regenerar palabra o frase individualmente en modo solo o generar nuevo código compartido
+  // Regenerar con la misma llave avanzando la secuencia determinista
   const handleRegenerate = useCallback(() => {
-    if (isCustomCodeActive) {
-      const nextCode = generateRandomCode();
-      setSharedCode(nextCode);
-      setSurvivalStreak(0);
-      setSurvivalLevel(1);
-      setIsPhraseFinished(false);
-      showToast(`✨ Nuevo código compartido generado: ${nextCode}`, 2500);
-      return;
-    }
+    setPartidaNum((p) => p + 1);
+    setIsPhraseFinished(false);
 
-    if (mode === 'daily') {
-      setDailyNonce((n) => n + 1);
-      showToast('✨ Nueva palabra aleatoria generada', 2000);
-    } else if (mode === 'phrase') {
-      setPhraseNonce((n) => n + 1);
-      setIsPhraseFinished(false);
-      showToast('✨ Nueva frase generada', 2000);
-    } else if (mode === 'survival') {
-      handleRestartSurvival();
+    if (isCustomCodeActive) {
+      showToast(`✨ Partida #${partidaNum + 1} con clave ${sharedCode}`, 2000);
+    } else {
+      showToast(`✨ Partida #${partidaNum + 1} generada`, 2000);
     }
-  }, [isCustomCodeActive, mode, handleRestartSurvival, showToast]);
+  }, [isCustomCodeActive, sharedCode, partidaNum, showToast]);
 
   const isGameOver = gameState.status === 'won' || gameState.status === 'lost';
 
   const modeBadge =
     mode === 'daily'
       ? isCustomCodeActive
-        ? `CÓDIGO: ${sharedCode}`
-        : dailyNonce === 0
+        ? `CLAVE: ${sharedCode} (#${partidaNum})`
+        : partidaNum === 1
         ? 'PALABRA'
-        : `LIBRE (#${dailyNonce})`
+        : `LIBRE (#${partidaNum})`
       : mode === 'phrase'
       ? isCustomCodeActive
-        ? `CÓDIGO: ${sharedCode}`
-        : phraseNonce === 0
+        ? `CLAVE: ${sharedCode} (#${partidaNum})`
+        : partidaNum === 1
         ? 'FRASE'
-        : `FRASE (#${phraseNonce})`
+        : `FRASE (#${partidaNum})`
       : `RACHA (${survivalStreak}🔥)`;
 
   return (
@@ -259,6 +243,7 @@ export const App: React.FC = () => {
         currentMode={mode}
         onSelectMode={(m) => {
           setMode(m);
+          setPartidaNum(1);
           setIsPhraseFinished(false);
         }}
         sharedCode={sharedCode}
@@ -266,6 +251,7 @@ export const App: React.FC = () => {
         onApplyCustomCode={(code) => {
           setSharedCode(code);
           setIsCustomCodeActive(true);
+          setPartidaNum(1);
           setSurvivalStreak(0);
           setSurvivalLevel(1);
           setIsPhraseFinished(false);
@@ -273,6 +259,7 @@ export const App: React.FC = () => {
         }}
         onClearCustomCode={() => {
           setIsCustomCodeActive(false);
+          setPartidaNum(1);
           setSurvivalStreak(0);
           setSurvivalLevel(1);
           showToast('Regresaste al modo individual', 2000);
@@ -281,15 +268,15 @@ export const App: React.FC = () => {
 
       {mode === 'survival' && (
         <div style={{ padding: '4px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-          <span>Código de racha: <strong>{sharedCode}</strong> (Nivel {survivalLevel})</span>
+          <span>Clave de racha: <strong>{sharedCode}</strong> (Nivel {survivalLevel})</span>
           <button
             type="button"
             className="btn-secondary"
             style={{ padding: '2px 8px', fontSize: '0.75rem' }}
             onClick={handleRestartSurvival}
-            title="Reiniciar racha"
+            title="Reiniciar racha al nivel 1"
           >
-            Nueva serie
+            Reiniciar a Nivel 1
           </button>
         </div>
       )}
@@ -403,7 +390,7 @@ export const App: React.FC = () => {
               setIsStatsOpen(false);
             }}
           >
-            🔄 Jugar otra partida
+            🔄 Siguiente palabra
           </button>
         </div>
       </Modal>
