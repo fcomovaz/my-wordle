@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "validate:corpus": "node scripts/validate-corpus.ts"
+    "validate:corpus": "node scripts/validate-corpus.js"
   },
   "dependencies": {
     "react": "^19.0.0",

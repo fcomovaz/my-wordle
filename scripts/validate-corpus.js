@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-function normalize(str: string): string {
+function normalize(str) {
   return str
     .toUpperCase()
     .replace(/[ÁÀÂÄ]/g, 'A')
@@ -15,7 +15,7 @@ const corpusPath = path.resolve(process.cwd(), 'src/data/es5.json');
 const raw = fs.readFileSync(corpusPath, 'utf-8');
 const data = JSON.parse(raw);
 
-const errors: string[] = [];
+const errors = [];
 
 if (!data.id || typeof data.id !== 'string') {
   errors.push('Falta id válido');
@@ -30,7 +30,7 @@ if (!Array.isArray(data.valid) || data.valid.length === 0) {
   errors.push('Array valid debe ser no vacío');
 }
 
-const wordSet = new Set<string>();
+const wordSet = new Set();
 for (let i = 0; i < data.words.length; i++) {
   const w = data.words[i];
   const n = normalize(w);
@@ -43,7 +43,7 @@ for (let i = 0; i < data.words.length; i++) {
   wordSet.add(w);
 }
 
-const validSet = new Set<string>();
+const validSet = new Set();
 for (let i = 0; i < data.valid.length; i++) {
   const v = data.valid[i];
   const n = normalize(v);
